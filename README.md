@@ -156,7 +156,7 @@ and opens the UI in its own window:
 <summary>What <code>start-macos.sh</code> does, serving engines, and manual steps</summary>
 
 `start-macos.sh` is just the manual steps wrapped up: Homebrew deps → a Python
-`.venv` → `pip install -r requirements.txt` → `python setup.py` → `uvicorn` on a
+`venv` → `pip install -r requirements.txt` → `python setup.py` → `uvicorn` on a
 non-AirPlay port. Run them by hand if you prefer (the Linux steps above, but use
 `python3.11 -m venv` and `--port 7860`).
 
@@ -172,7 +172,7 @@ non-AirPlay port. Run them by hand if you prefer (the Linux steps above, but use
 `start-macos.sh` defaults to **7860**. To use 7000, turn AirPlay Receiver off in
 System Settings → General → AirDrop & Handoff.
 
-**Build prerequisites baked in** — the `.app` wraps this repo's `.venv` (it
+**Build prerequisites baked in** — the `.app` wraps this repo's `venv` (it
 doesn't bundle Python), so the path is fixed at build time — rebuild if you move
 the repo.
 </details>

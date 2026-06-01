@@ -57,19 +57,21 @@ else
   PY="$(command -v python3.11)"
 fi
 
-# 3. Python environment + dependencies (kept inside the repo, in .venv).
-if [ ! -d .venv ]; then
+# 3. Python environment + dependencies (kept inside the repo, in venv/).
+#    Named `venv` to match the manual steps and build-macos-app.sh, so the
+#    clickable .app reuses this same environment.
+if [ ! -d venv ]; then
   echo "▶ Creating Python environment…"
-  "$PY" -m venv .venv
+  "$PY" -m venv venv
 fi
 echo "▶ Installing Python packages…"
-./.venv/bin/python -m pip install --quiet --upgrade pip
-./.venv/bin/python -m pip install --quiet -r requirements.txt
+./venv/bin/python -m pip install --quiet --upgrade pip
+./venv/bin/python -m pip install --quiet -r requirements.txt
 
 # 4. First-run setup: creates data dirs and prints an initial admin password
 #    the first time (idempotent — does nothing if already set up).
 echo "▶ Preparing Odysseus…"
-./.venv/bin/python setup.py
+./venv/bin/python setup.py
 
 # 5. Launch. Bind to loopback only (safe default).
 URL="http://127.0.0.1:$PORT"
@@ -101,4 +103,4 @@ echo
 echo "▶ Starting Odysseus — it will open in your browser at $URL"
 echo "  (this takes a few seconds; press Ctrl+C here to stop)"
 echo
-exec ./.venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port "$PORT"
+exec ./venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port "$PORT"
