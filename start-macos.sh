@@ -55,10 +55,34 @@ echo "▶ Installing Python packages…"
 echo "▶ Preparing Odysseus…"
 ./.venv/bin/python setup.py
 
-# 5. Launch. Bind to loopback only (safe default); the user opens the URL below.
+# 5. Launch. Bind to loopback only (safe default).
+URL="http://127.0.0.1:$PORT"
+
+# Open the browser automatically once the server is accepting connections — so
+# the URL isn't lost in the startup logs that keep scrolling. The wait/open runs
+# in the background; uvicorn takes over this shell via `exec` below. Skip with
+# ODYSSEUS_NO_OPEN=1 (e.g. over SSH / headless).
+if [ -z "$ODYSSEUS_NO_OPEN" ] && command -v open >/dev/null 2>&1; then
+  (
+    for _ in $(seq 1 90); do
+      if (exec 3<>"/dev/tcp/127.0.0.1/$PORT") 2>/dev/null; then
+        exec 3>&- 3<&-
+        printf '\n'
+        printf '  ┌────────────────────────────────────────────┐\n'
+        printf '  │  ✓ Odysseus is ready — opening your browser  │\n'
+        printf '  │     %-40s │\n' "$URL"
+        printf '  │     (Press Ctrl+C in this window to stop)    │\n'
+        printf '  └────────────────────────────────────────────┘\n\n'
+        open "$URL"
+        break
+      fi
+      sleep 1
+    done
+  ) &
+fi
+
 echo
-echo "✓ Odysseus is starting. Open this in your browser:"
-echo "    http://127.0.0.1:$PORT"
-echo "  (Press Ctrl+C here to stop it.)"
+echo "▶ Starting Odysseus — it will open in your browser at $URL"
+echo "  (this takes a few seconds; press Ctrl+C here to stop)"
 echo
 exec ./.venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port "$PORT"
