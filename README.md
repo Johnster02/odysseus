@@ -142,8 +142,9 @@ That installs what's needed via Homebrew (Python 3.11+, `tmux`, and a prebuilt
 Metal `llama-server`), sets everything up, and launches Odysseus at
 **http://127.0.0.1:7860**. Log in with the admin password it prints, open
 **Cookbook**, and it detects your GPU (`backend: metal`) and recommends GGUF
-models that fit your Mac. Re-run `./start-macos.sh` any time to start it again
-(use another port with `ODYSSEUS_PORT=7900 ./start-macos.sh`).
+models that fit your Mac. (MLX models aren't supported on macOS and are hidden —
+see below.) Re-run `./start-macos.sh` any time to start it again (use another
+port with `ODYSSEUS_PORT=7900 ./start-macos.sh`).
 
 **Prefer a clickable app?** After your first `./start-macos.sh`, build a
 launcher `Odysseus.app` (+ a drag-to-Applications `.dmg`) that starts the server
@@ -167,6 +168,11 @@ non-AirPlay port. Run them by hand if you prefer (the Linux steps above, but use
   (`brew install cmake && xcode-select --install`).
 - **Ollama** — `brew install ollama` is another simple Metal-accelerated option.
 - vLLM/SGLang are CUDA/ROCm-only and do **not** run on macOS.
+
+**MLX models are not supported on Apple Silicon.** Odysseus serves models via
+llama.cpp/Ollama (GGUF) and vLLM/SGLang (CUDA) — it has no MLX (`mlx_lm`)
+runtime. So MLX-only models can't be served on a Mac and are deliberately
+**hidden** from Cookbook's recommendations there; pick a GGUF build instead.
 
 **Port 7000 & AirPlay** — macOS AirPlay Receiver holds ports 7000/5000, so
 `start-macos.sh` defaults to **7860**. To use 7000, turn AirPlay Receiver off in
