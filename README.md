@@ -143,6 +143,14 @@ equivalent of the systemd unit), use the bundled launchd installer:
 ODYSSEUS_PORT=7860 ./install-service-macos.sh    # if 7000 is taken by AirPlay
 ```
 
+Prefer a clickable app? Build a launcher `Odysseus.app` (+ a drag-to-Applications
+`.dmg`) that starts the local server and opens the UI in its own window:
+```bash
+./build-macos-app.sh          # → dist/Odysseus.app and dist/Odysseus.dmg
+```
+This wraps the venv in this repo (it doesn't bundle Python), so the install path
+is baked in at build time — rebuild if you move the repo.
+
 ### Option 3: Manual install — Windows (PowerShell)
 Windows support is not actively tested. Use it with caution; Docker on Linux
 or a Linux/macOS manual install is the safer path for now.
