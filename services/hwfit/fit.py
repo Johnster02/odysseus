@@ -435,15 +435,15 @@ def rank_models(system, use_case=None, limit=50, search=None, sort="score", quan
         if native_q.startswith("mlx-"):
             continue
 
-        # The mirror case: vLLM-only prequant formats (AWQ / GPTQ / FP8 / NVFP4 /
-        # compressed-tensors) can't be served by llama.cpp or Ollama, the only
-        # Metal-capable engines — vLLM itself doesn't run on macOS at all. Drop
-        # them on Apple Silicon UNLESS the model also ships a GGUF build we can
-        # actually serve. Without this, the Cookbook recommends models the Mac
-        # can never run.
-        if apple_silicon and not m.get("gguf_sources"):
-            if native_q.upper().startswith(("AWQ", "GPTQ", "FP8", "NVFP4", "W4A16", "W8A8")):
-                continue
+        # On Apple Silicon the only serving engines are llama.cpp and Ollama,
+        # both GGUF-only (vLLM/SGLang are CUDA/ROCm and don't run on macOS). So
+        # a model is Metal-servable ONLY if it ships a real GGUF. Drop everything
+        # else — raw safetensors repos (which the catalog still tags with a
+        # default GGUF quant) and vLLM-only AWQ/GPTQ/FP8 builds alike. Without
+        # this the Cookbook recommends models the Mac can't run; on CUDA these
+        # stay visible because vLLM serves safetensors directly.
+        if apple_silicon and not (m.get("is_gguf") or m.get("gguf_sources")):
+            continue
 
         # Format filter: AWQ tab → only AWQ models, FP8 tab → only FP8 models
         if filter_native:

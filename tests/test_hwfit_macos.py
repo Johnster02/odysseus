@@ -6,6 +6,7 @@ guarantee that non-macOS (Linux/Windows) detection is unchanged.
 
 from services.hwfit import hardware
 from services.hwfit.fit import rank_models
+from services.hwfit.models import get_models
 
 
 def _metal_system(ram_gb=16.0, vram_gb=10.7):
@@ -43,14 +44,37 @@ def test_mlx_models_hidden_on_metal():
     assert mlx == [], f"MLX models surfaced but cannot be served: {[m['name'] for m in mlx]}"
 
 
-def test_mlx_hidden_on_cuda_backend_unchanged():
-    """Regression guard: Linux/CUDA users never saw MLX before and still don't."""
-    sys_cuda = {
+def _cuda_system():
+    return {
         "has_gpu": True, "backend": "cuda", "gpu_name": "NVIDIA RTX 4090",
         "gpu_vram_gb": 24.0, "gpu_count": 1, "available_ram_gb": 32.0, "total_ram_gb": 64.0,
     }
-    mlx = [m for m in rank_models(sys_cuda, limit=900) if str(m.get("quant", "")).startswith("mlx-")]
+
+
+def test_mlx_hidden_on_cuda_backend_unchanged():
+    """Regression guard: Linux/CUDA users never saw MLX before and still don't."""
+    mlx = [m for m in rank_models(_cuda_system(), limit=900) if str(m.get("quant", "")).startswith("mlx-")]
     assert mlx == []
+
+
+def test_only_gguf_models_recommended_on_metal():
+    """llama.cpp and Ollama (the only Metal engines) need GGUF. Safetensors-only
+    repos — incl. vLLM-only AWQ/GPTQ/FP8 — can't be served on Metal, so every
+    model recommended on Apple Silicon must ship a servable GGUF."""
+    catalog = {m["name"]: m for m in get_models()}
+    unservable = [
+        r["name"] for r in rank_models(_metal_system(), limit=900)
+        if not (catalog.get(r["name"], {}).get("is_gguf")
+                or catalog.get(r["name"], {}).get("gguf_sources"))
+    ]
+    assert unservable == [], f"{len(unservable)} non-GGUF models on Metal, e.g. {unservable[:3]}"
+
+
+def test_safetensors_models_still_recommended_on_cuda():
+    """Regression guard: vLLM serves safetensors on CUDA, so non-GGUF repos must
+    NOT be filtered there — the GGUF-only rule is Metal-specific."""
+    names = {r["name"] for r in rank_models(_cuda_system(), limit=900)}
+    assert "microsoft/Phi-mini-MoE-instruct" in names
 
 
 def test_apple_silicon_detected_as_metal(monkeypatch):
