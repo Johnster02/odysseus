@@ -865,7 +865,10 @@ def setup_cookbook_routes() -> APIRouter:
                 # Jinja2 rejects (do_tojson ensure_ascii). Build it once from
                 # source if missing; keep llama-cpp-python only as a fallback.
                 runner_lines.append('# Ensure a llama.cpp server (prefer native llama-server)')
-                runner_lines.append('export PATH="$HOME/.local/bin:$HOME/bin:$HOME/llama.cpp/build/bin:$PATH"')
+                # Include the Homebrew bin dirs so a brew-installed llama-server /
+                # ollama is found (otherwise macOS falls back to a slow source build).
+                # /opt/homebrew = Apple Silicon, /usr/local = Intel; harmless on Linux.
+                runner_lines.append('export PATH="$HOME/.local/bin:$HOME/bin:$HOME/llama.cpp/build/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"')
                 runner_lines.append('if [ -d /data/data/com.termux ]; then')
                 runner_lines.append('  # Termux: no native build — use the Python bindings (CPU).')
                 runner_lines.append('  if ! python3 -c "import llama_cpp" 2>/dev/null; then')

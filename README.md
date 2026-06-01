@@ -61,7 +61,7 @@ in `.env`, recreate the container, and open `http://localhost:7001`.
 
 > **On Apple Silicon, Docker can't use the Metal GPU** (it runs a Linux VM), so
 > Cookbook will serve models on the CPU only. For GPU-accelerated Cookbook,
-> run the app natively — see [Apple Silicon notes](#apple-silicon-m-series-notes).
+> run the app natively — see [Apple Silicon](#apple-silicon-m-series).
 
 Cookbook remote servers use an Odysseus-owned SSH key from `./data/ssh`
 inside Docker. In **Cookbook -> Settings -> Servers**, generate/copy the
@@ -96,7 +96,7 @@ model downloads and serves.
 
 > **On macOS (Apple Silicon)?** Skip the manual steps below — run
 > `./start-macos.sh` for a one-command setup. See
-> [Apple Silicon — easiest setup](#apple-silicon-m-series--easiest-setup).
+> [Apple Silicon](#apple-silicon-m-series).
 
 Install system packages first:
 ```bash
@@ -125,7 +125,7 @@ python setup.py            # creates data dirs and prints an initial admin passw
 python -m uvicorn app:app --host 0.0.0.0 --port 7000
 ```
 
-#### Apple Silicon (M-series) — easiest setup
+#### Apple Silicon (M-series)
 
 > **On a Mac, run Odysseus natively (not in Docker) so Cookbook can use the
 > Metal GPU.** Cookbook serves models on whatever machine Odysseus runs on, and

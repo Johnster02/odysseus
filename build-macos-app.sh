@@ -126,14 +126,19 @@ SERVER_PID=$!
 trap 'kill $SERVER_PID 2>/dev/null; exit 0' TERM INT
 
 # Wait for readiness (first run downloads an embedding model — allow ~2 min).
+READY=0
 for i in $(seq 1 120); do
-  /usr/bin/curl -s -o /dev/null --max-time 2 "$URL" && break
+  /usr/bin/curl -s -o /dev/null --max-time 2 "$URL" && { READY=1; break; }
   kill -0 "$SERVER_PID" 2>/dev/null || die_gui "Odysseus failed to start. Log:
 $LOG"
   sleep 1
 done
 
-open_ui
+if [ "$READY" = "1" ]; then
+  open_ui
+else
+  notify "Odysseus is taking a while — open $URL once it finishes starting."
+fi
 wait "$SERVER_PID"
 LAUNCHER
 

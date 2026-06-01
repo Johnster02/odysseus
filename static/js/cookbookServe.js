@@ -384,7 +384,8 @@ function _rerenderCachedModels() {
       const _backendChoices = _isWindows()
         ? [['llamacpp','llama.cpp']]
         : _isMetal()
-        ? [['llamacpp','llama.cpp'],['ollama','Ollama'],['diffusers','Diffusers']]
+        // Diffusers (diffusion_server.py) is CUDA-only — omit it on Metal.
+        ? [['llamacpp','llama.cpp'],['ollama','Ollama']]
         : [['vllm','vLLM'],['sglang','SGLang'],['llamacpp','llama.cpp'],['diffusers','Diffusers']];
       const backendOpts = _backendChoices.map(([v,l]) => `<option value="${v}"${defaultBackend===v?' selected':''}>${l}</option>`).join('');
       panelHtml += `<label>${_l('Backend','Inference engine: vLLM, SGLang, llama.cpp, or Diffusers')}<select class="hwfit-sf" data-field="backend">${backendOpts}</select></label>`;

@@ -18,7 +18,17 @@ cd "$REPO_DIR"
 
 PORT="${ODYSSEUS_PORT:-7860}"   # 7860, not 7000 — macOS AirPlay Receiver holds 7000.
 
+# Friendly message on any failure — re-running is safe (every step is idempotent).
+trap 'echo; echo "✗ Setup failed above. It is safe to re-run ./start-macos.sh."; exit 1' ERR
+
 echo "▶ Odysseus quick start for macOS"
+
+# Fail fast if the port is already taken (e.g. a previous run still running).
+if (exec 3<>"/dev/tcp/127.0.0.1/$PORT") 2>/dev/null; then
+  echo "✗ Port $PORT is already in use. Stop what's using it, or pick another port:"
+  echo "    ODYSSEUS_PORT=7900 ./start-macos.sh"
+  exit 1
+fi
 
 # 1. Homebrew — the macOS package manager. We can't safely auto-install it
 #    (it wants its own interactive confirmation), so point the user at it.
@@ -63,7 +73,13 @@ if [ -n "$PY" ]; then
   brew install tmux llama.cpp
 else
   brew install python@3.11 tmux llama.cpp
-  PY="$(command -v /opt/homebrew/bin/python3.11 || command -v python3.11)"
+  PY="$(command -v /opt/homebrew/bin/python3.11 || command -v python3.11 || true)"
+fi
+
+if [ -z "$PY" ] || [ ! -x "$PY" ]; then
+  echo "✗ Couldn't find a Python 3.11+ to build the environment with."
+  echo "  Check: ls /opt/homebrew/bin/python3*  (or install one: brew install python@3.11)"
+  exit 1
 fi
 
 # 3. Python environment + dependencies (kept inside the repo, in venv/).
@@ -73,27 +89,29 @@ if [ ! -d venv ]; then
   echo "▶ Creating Python environment…"
   "$PY" -m venv venv
 fi
-echo "▶ Installing Python packages…"
+echo "▶ Installing Python packages (first run downloads a few — can take a few minutes)…"
 ./venv/bin/python -m pip install --quiet --upgrade pip
-./venv/bin/python -m pip install --quiet -r requirements.txt
+# Not --quiet: this is the slow step, so show progress (and any real errors).
+./venv/bin/python -m pip install -r requirements.txt
 
 # 4. First-run setup: creates data dirs and prints an initial admin password
-#    the first time (idempotent — does nothing if already set up).
+#    the first time (idempotent — does nothing if already set up). Suppress its
+#    manual run hint — we launch the server ourselves just below.
 echo "▶ Preparing Odysseus…"
-./venv/bin/python setup.py
+ODYSSEUS_SKIP_RUN_HINT=1 ./venv/bin/python setup.py
 
 # 5. Launch. Bind to loopback only (safe default).
 URL="http://127.0.0.1:$PORT"
 
 # Open the browser automatically once the server is accepting connections — so
-# the URL isn't lost in the startup logs that keep scrolling. The wait/open runs
-# in the background; uvicorn takes over this shell via `exec` below. Skip with
+# the URL isn't lost in the startup logs that keep scrolling. Runs in the
+# background and is cleaned up when the server stops. Skip with
 # ODYSSEUS_NO_OPEN=1 (e.g. over SSH / headless).
+POLLER_PID=""
 if [ -z "$ODYSSEUS_NO_OPEN" ] && command -v open >/dev/null 2>&1; then
   (
     for _ in $(seq 1 90); do
       if (exec 3<>"/dev/tcp/127.0.0.1/$PORT") 2>/dev/null; then
-        exec 3>&- 3<&-
         printf '\n'
         printf '  ┌────────────────────────────────────────────┐\n'
         printf '  │  ✓ Odysseus is ready — opening your browser  │\n'
@@ -106,10 +124,16 @@ if [ -z "$ODYSSEUS_NO_OPEN" ] && command -v open >/dev/null 2>&1; then
       sleep 1
     done
   ) &
+  POLLER_PID=$!
 fi
+
+# Setup is done — drop the setup-failure handler, and clean up the background
+# opener when the server exits or the user presses Ctrl+C.
+trap - ERR
+trap '[ -n "$POLLER_PID" ] && kill "$POLLER_PID" 2>/dev/null' EXIT INT TERM
 
 echo
 echo "▶ Starting Odysseus — it will open in your browser at $URL"
 echo "  (this takes a few seconds; press Ctrl+C here to stop)"
 echo
-exec ./venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port "$PORT"
+./venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port "$PORT"
