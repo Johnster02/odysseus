@@ -873,7 +873,12 @@ def setup_cookbook_routes() -> APIRouter:
                 # a prebuilt llama-server and skips this whole source build.)
                 runner_lines.append('  NPROC="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"')
                 runner_lines.append('  if [ "$(uname -s)" = "Darwin" ]; then')
-                runner_lines.append('    cd ~/llama.cpp && cmake -B build \\')
+                runner_lines.append('    command -v cmake >/dev/null 2>&1 || echo "WARNING: cmake not found — install it with: brew install cmake (or: brew install llama.cpp for a prebuilt llama-server)."')
+                # Start from a clean cache: a prior failed configure (e.g. a CUDA
+                # attempt) poisons build/CMakeCache.txt, so a plain `cmake -B build`
+                # would reuse the bad settings and fail again. CMAKE_BUILD_TYPE is
+                # explicit so the binary is optimized (Metal auto-enables on macOS).
+                runner_lines.append('    cd ~/llama.cpp && rm -rf build && cmake -B build -DCMAKE_BUILD_TYPE=Release \\')
                 runner_lines.append('      && cmake --build build -j"$NPROC" --target llama-server \\')
                 runner_lines.append('      && ln -sf ~/llama.cpp/build/bin/llama-server ~/bin/llama-server')
                 runner_lines.append('  else')

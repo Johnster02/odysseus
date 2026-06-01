@@ -421,17 +421,18 @@ def rank_models(system, use_case=None, limit=50, search=None, sort="score", quan
     # If user picked a prequantized format (AWQ/FP8/GPTQ), filter to only those models
     filter_native = quant and any(quant.startswith(p) for p in ("AWQ-", "GPTQ-", "FP8"))
 
-    # MLX-quantized models only run on Apple Silicon (Metal). Exclude them on
-    # every other backend (CUDA / ROCm / CPU) so Linux/Windows users don't see
-    # unrunnable suggestions.
     system_backend = (system.get("backend") or "").lower()
     apple_silicon = system_backend in ("mps", "metal", "apple")
 
     for m in models:
         native_q = m.get("quantization", "")
 
-        # Drop MLX models on non-Apple hardware
-        if not apple_silicon and native_q.startswith("mlx-"):
+        # MLX-quantized models need the MLX runtime (mlx_lm), which Odysseus
+        # doesn't generate serve commands for — only llama.cpp/Ollama (Metal)
+        # and vLLM/SGLang (CUDA). MLX repos ship no GGUF alternative, so they're
+        # unrunnable on every backend we support. Always drop them, on Apple
+        # Silicon too, so the Cookbook never recommends a model it can't serve.
+        if native_q.startswith("mlx-"):
             continue
 
         # The mirror case: vLLM-only prequant formats (AWQ / GPTQ / FP8 / NVFP4 /
