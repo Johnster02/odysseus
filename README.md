@@ -87,8 +87,8 @@ The Cookbook model catalog check should print a non-zero count. If it prints
 `0`, rebuild the Odysseus image with `docker compose build --no-cache odysseus`.
 
 ### Option 2: Manual install — Linux / macOS
-**Requirements:** Python 3.11+. On Linux/Termux, Cookbook also requires `tmux`
-for background model downloads and serves.
+**Requirements:** Python 3.11+. Cookbook also requires `tmux` for background
+model downloads and serves.
 
 Install system packages first:
 ```bash
@@ -100,17 +100,47 @@ sudo pacman -S tmux
 
 # Fedora
 sudo dnf install tmux
+
+# macOS (Homebrew). The system Python is 3.9 — install 3.11+ too:
+brew install python@3.11 tmux
 ```
 
 Then install Odysseus:
 ```bash
 git clone https://github.com/pewdiepie-archdaemon/odysseus.git
 cd odysseus
-python3 -m venv venv
+python3 -m venv venv          # on macOS use: python3.11 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 python setup.py            # creates data dirs and prints an initial admin password
 python -m uvicorn app:app --host 0.0.0.0 --port 7000
+```
+
+#### Apple Silicon (M-series) notes
+Odysseus detects the Metal GPU and your unified memory automatically — the
+Cookbook's hardware scan reports `backend: metal` and recommends GGUF/MLX models
+that fit, and filters out CUDA-only formats (AWQ/GPTQ/FP8) it can't serve. For
+local serving, **Ollama** is the simplest Metal-accelerated engine:
+```bash
+brew install ollama
+```
+llama.cpp also works (`brew install llama.cpp` ships a prebuilt `llama-server`,
+or Cookbook will build it from source with Metal on first serve). vLLM is
+CUDA/ROCm-only and does **not** run on macOS.
+
+**Port 7000 conflicts with AirPlay Receiver.** macOS runs an AirPlay Receiver on
+ports 7000 and 5000 by default, so `uvicorn … --port 7000` fails to bind. Either
+turn it off (System Settings → General → AirDrop & Handoff → **AirPlay Receiver:
+Off**) or run Odysseus on another port:
+```bash
+uvicorn app:app --host 127.0.0.1 --port 7860
+```
+
+To run Odysseus as a background service that starts at login (the macOS
+equivalent of the systemd unit), use the bundled launchd installer:
+```bash
+./install-service-macos.sh                       # http://127.0.0.1:7000
+ODYSSEUS_PORT=7860 ./install-service-macos.sh    # if 7000 is taken by AirPlay
 ```
 
 ### Option 3: Manual install — Windows (PowerShell)
