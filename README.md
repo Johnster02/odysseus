@@ -137,9 +137,21 @@ Metal-accelerated engine:
 ```bash
 brew install ollama
 ```
-llama.cpp also works (`brew install llama.cpp` ships a prebuilt `llama-server`,
-or Cookbook will build it from source with Metal on first serve). vLLM is
-CUDA/ROCm-only and does **not** run on macOS.
+llama.cpp also works, with two paths:
+- **Prebuilt (recommended, zero build):** `brew install llama.cpp` ships a
+  Metal-enabled `llama-server`. Cookbook finds it on `PATH` and serves
+  immediately — no compiler, no `cmake`, no wait.
+- **From source:** if no `llama-server` is found, Cookbook builds it from source
+  with Metal on first serve. This needs the build toolchain — **`cmake` plus the
+  Xcode Command Line Tools**:
+  ```bash
+  brew install cmake
+  xcode-select --install   # if you haven't already (provides clang + git)
+  ```
+  Without them the build is skipped and serving silently falls back to a slow
+  CPU build, so install them (or use the prebuilt above) before serving.
+
+vLLM is CUDA/ROCm-only and does **not** run on macOS.
 
 **Port 7000 conflicts with AirPlay Receiver.** macOS runs an AirPlay Receiver on
 ports 7000 and 5000 by default, so `uvicorn … --port 7000` fails to bind. Either
