@@ -59,6 +59,10 @@ image build. Open `http://localhost:7000` after the containers are healthy.
 If port `7000` is already taken, set `APP_PORT=7001` (or another free port)
 in `.env`, recreate the container, and open `http://localhost:7001`.
 
+> **On Apple Silicon, Docker can't use the Metal GPU** (it runs a Linux VM), so
+> Cookbook will serve models on the CPU only. For GPU-accelerated Cookbook,
+> run the app natively — see [Apple Silicon notes](#apple-silicon-m-series-notes).
+
 Cookbook remote servers use an Odysseus-owned SSH key from `./data/ssh`
 inside Docker. In **Cookbook -> Settings -> Servers**, generate/copy the
 public key and add it to the remote server's `~/.ssh/authorized_keys`.
@@ -117,10 +121,19 @@ python -m uvicorn app:app --host 0.0.0.0 --port 7000
 ```
 
 #### Apple Silicon (M-series) notes
-Odysseus detects the Metal GPU and your unified memory automatically — the
-Cookbook's hardware scan reports `backend: metal` and recommends GGUF/MLX models
-that fit, and filters out CUDA-only formats (AWQ/GPTQ/FP8) it can't serve. For
-local serving, **Ollama** is the simplest Metal-accelerated engine:
+
+> **Run Odysseus natively (not in Docker) if you want Cookbook to use the GPU.**
+> Cookbook scans and serves models on whatever machine the Odysseus process runs
+> on. Docker Desktop on macOS runs a Linux VM with **no access to the Metal GPU**,
+> so inside a container your Mac is detected as a CPU-only Linux box and models
+> serve on the CPU. The Docker stack is fine for everything else — you can keep
+> ChromaDB/SearXNG/ntfy in Docker and run just the app natively against them.
+
+Run natively and Odysseus detects the Metal GPU and your unified memory
+automatically — the Cookbook's hardware scan reports `backend: metal` and
+recommends GGUF models that fit, filtering out formats it can't serve on Metal
+(MLX, and CUDA-only AWQ/GPTQ/FP8). For local serving, **Ollama** is the simplest
+Metal-accelerated engine:
 ```bash
 brew install ollama
 ```

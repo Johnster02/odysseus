@@ -519,6 +519,9 @@ def detect_system(host="", ssh_port="", platform="", fresh=False):
             "gpu_groups": gpu_info.get("gpu_groups", []),
             "homogeneous": gpu_info.get("homogeneous", True),
             "backend": gpu_info["backend"],
+            # Apple Silicon / AMD APUs share system RAM with the GPU — carry the
+            # flag through so callers can tell unified from discrete VRAM.
+            "unified_memory": gpu_info.get("unified_memory", False),
         }
     else:
         if _remote_host:
