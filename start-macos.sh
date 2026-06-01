@@ -31,12 +31,21 @@ if ! command -v brew >/dev/null 2>&1; then
   exit 1
 fi
 
-# 2. System dependencies:
-# Find a Python 3.11+ that's already installed (the app needs 3.11+). macOS
-# doesn't ship a recent Python by default, so we only install one if yours is
-# missing or too old — we don't force a specific version on top of what you have.
+# 2. Find a Python 3.11+ to build the environment with.
+#    On Apple Silicon we require an *arm64* interpreter (Homebrew's, under
+#    /opt/homebrew). A universal2 or x86 Python — e.g. the python.org installer
+#    at /usr/local — produces a venv whose compiled extensions get loaded as the
+#    wrong architecture when launched from the .app bundle (Cookbook then dies
+#    with "incompatible architecture"). So on arm64 we only look under
+#    /opt/homebrew and install Homebrew's python@3.11 if it's missing. On Intel
+#    (or non-mac) we just use whatever Python 3.11+ is on PATH.
 PY=""
-for cand in python3 python3.13 python3.12 python3.11; do
+if [ "$(uname -m)" = "arm64" ]; then
+  cands="/opt/homebrew/bin/python3.13 /opt/homebrew/bin/python3.12 /opt/homebrew/bin/python3.11"
+else
+  cands="python3 python3.13 python3.12 python3.11"
+fi
+for cand in $cands; do
   p="$(command -v "$cand" 2>/dev/null)" || continue
   if "$p" -c 'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3, 11) else 1)' 2>/dev/null; then
     PY="$p"; break
@@ -47,14 +56,14 @@ done
 #    - tmux      : Cookbook runs model downloads/serves in the background
 #    - llama.cpp : a prebuilt, Metal-enabled llama-server so Cookbook can serve
 #                  GGUF models on the GPU with no compile step
-#    - python@3.11 : installed only if no suitable Python 3.11+ was found above
+#    - python@3.11 : installed only if no suitable (arm64) Python was found above
 echo "▶ Installing dependencies (Homebrew)…"
 if [ -n "$PY" ]; then
-  echo "  (using existing $("$PY" --version 2>&1))"
+  echo "  (using $("$PY" --version 2>&1) at $PY)"
   brew install tmux llama.cpp
 else
   brew install python@3.11 tmux llama.cpp
-  PY="$(command -v python3.11)"
+  PY="$(command -v /opt/homebrew/bin/python3.11 || command -v python3.11)"
 fi
 
 # 3. Python environment + dependencies (kept inside the repo, in venv/).
