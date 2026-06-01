@@ -161,13 +161,6 @@ Off**) or run Odysseus on another port:
 uvicorn app:app --host 127.0.0.1 --port 7860
 ```
 
-To run Odysseus as a background service that starts at login (the macOS
-equivalent of the systemd unit), use the bundled launchd installer:
-```bash
-./install-service-macos.sh                       # http://127.0.0.1:7000
-ODYSSEUS_PORT=7860 ./install-service-macos.sh    # if 7000 is taken by AirPlay
-```
-
 Prefer a clickable app? Build a launcher `Odysseus.app` (+ a drag-to-Applications
 `.dmg`) that starts the local server and opens the UI in its own window:
 ```bash
