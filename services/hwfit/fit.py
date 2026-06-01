@@ -19,12 +19,22 @@ GPU_BANDWIDTH = {
     "6950 xt": 576, "6900 xt": 512, "6800 xt": 512, "6800": 512, "6700 xt": 384, "6600 xt": 256, "6600": 224,
     "mi300x": 5300, "mi300": 5300, "mi250x": 3277, "mi250": 3277, "mi210": 1638, "mi100": 1229,
     "9070 xt": 624, "9070": 488,
+    # Apple Silicon unified-memory bandwidth (GB/s). Keyed off the chip name
+    # reported by sysctl machdep.cpu.brand_string (e.g. "Apple M4 Max"). Listed
+    # before the bare "m_" keys matters less than length-sorting (done below),
+    # which guarantees "m4 max" is tried before "m4".
+    "m1 ultra": 800, "m1 max": 400, "m1 pro": 200, "m1": 68,
+    "m2 ultra": 800, "m2 max": 400, "m2 pro": 200, "m2": 100,
+    "m3 ultra": 800, "m3 max": 300, "m3 pro": 150, "m3": 100,
+    "m4 max": 410, "m4 pro": 273, "m4": 120,
 }
 
 # Pre-sort keys by length descending for correct substring matching
 _BW_KEYS_SORTED = sorted(GPU_BANDWIDTH.keys(), key=len, reverse=True)
 
-FALLBACK_K = {"cuda": 220, "rocm": 180, "cpu_x86": 70, "cpu_arm": 90}
+# metal: backstop for Apple Silicon chips not in GPU_BANDWIDTH (e.g. a future
+# M5) — the named chips above take the accurate bandwidth path instead.
+FALLBACK_K = {"cuda": 220, "rocm": 180, "metal": 150, "cpu_x86": 70, "cpu_arm": 90}
 
 USE_CASE_WEIGHTS = {
     "general":    (0.45, 0.30, 0.15, 0.10),
@@ -423,6 +433,16 @@ def rank_models(system, use_case=None, limit=50, search=None, sort="score", quan
         # Drop MLX models on non-Apple hardware
         if not apple_silicon and native_q.startswith("mlx-"):
             continue
+
+        # The mirror case: vLLM-only prequant formats (AWQ / GPTQ / FP8 / NVFP4 /
+        # compressed-tensors) can't be served by llama.cpp or Ollama, the only
+        # Metal-capable engines — vLLM itself doesn't run on macOS at all. Drop
+        # them on Apple Silicon UNLESS the model also ships a GGUF build we can
+        # actually serve. Without this, the Cookbook recommends models the Mac
+        # can never run.
+        if apple_silicon and not m.get("gguf_sources"):
+            if native_q.upper().startswith(("AWQ", "GPTQ", "FP8", "NVFP4", "W4A16", "W8A8")):
+                continue
 
         # Format filter: AWQ tab → only AWQ models, FP8 tab → only FP8 models
         if filter_native:
