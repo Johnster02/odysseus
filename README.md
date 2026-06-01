@@ -94,6 +94,10 @@ The Cookbook model catalog check should print a non-zero count. If it prints
 **Requirements:** Python 3.11+. Cookbook also requires `tmux` for background
 model downloads and serves.
 
+> **On macOS (Apple Silicon)?** Skip the manual steps below — run
+> `./start-macos.sh` for a one-command setup. See
+> [Apple Silicon — easiest setup](#apple-silicon-m-series--easiest-setup).
+
 Install system packages first:
 ```bash
 # Debian/Ubuntu
@@ -120,54 +124,57 @@ python setup.py            # creates data dirs and prints an initial admin passw
 python -m uvicorn app:app --host 0.0.0.0 --port 7000
 ```
 
-#### Apple Silicon (M-series) notes
+#### Apple Silicon (M-series) — easiest setup
 
-> **Run Odysseus natively (not in Docker) if you want Cookbook to use the GPU.**
-> Cookbook scans and serves models on whatever machine the Odysseus process runs
-> on. Docker Desktop on macOS runs a Linux VM with **no access to the Metal GPU**,
-> so inside a container your Mac is detected as a CPU-only Linux box and models
-> serve on the CPU. The Docker stack is fine for everything else — you can keep
-> ChromaDB/SearXNG/ntfy in Docker and run just the app natively against them.
+> **On a Mac, run Odysseus natively (not in Docker) so Cookbook can use the
+> Metal GPU.** Cookbook serves models on whatever machine Odysseus runs on, and
+> Docker on macOS is a Linux VM with **no access to the GPU** — in a container
+> your Mac looks like a CPU-only Linux box.
 
-Run natively and Odysseus detects the Metal GPU and your unified memory
-automatically — the Cookbook's hardware scan reports `backend: metal` and
-recommends GGUF models that fit, filtering out formats it can't serve on Metal
-(MLX, and CUDA-only AWQ/GPTQ/FP8). For local serving, **Ollama** is the simplest
-Metal-accelerated engine:
+**Quick start — one command.** From a fresh clone:
 ```bash
-brew install ollama
+git clone https://github.com/pewdiepie-archdaemon/odysseus.git
+cd odysseus
+./start-macos.sh
 ```
-llama.cpp also works, with two paths:
-- **Prebuilt (recommended, zero build):** `brew install llama.cpp` ships a
-  Metal-enabled `llama-server`. Cookbook finds it on `PATH` and serves
-  immediately — no compiler, no `cmake`, no wait.
-- **From source:** if no `llama-server` is found, Cookbook builds it from source
-  with Metal on first serve. This needs the build toolchain — **`cmake` plus the
-  Xcode Command Line Tools**:
-  ```bash
-  brew install cmake
-  xcode-select --install   # if you haven't already (provides clang + git)
-  ```
-  Without them the build is skipped and serving silently falls back to a slow
-  CPU build, so install them (or use the prebuilt above) before serving.
+That installs what's needed via Homebrew (Python 3.11+, `tmux`, and a prebuilt
+Metal `llama-server`), sets everything up, and launches Odysseus at
+**http://127.0.0.1:7860**. Log in with the admin password it prints, open
+**Cookbook**, and it detects your GPU (`backend: metal`) and recommends GGUF
+models that fit your Mac. Re-run `./start-macos.sh` any time to start it again
+(use another port with `ODYSSEUS_PORT=7900 ./start-macos.sh`).
 
-vLLM is CUDA/ROCm-only and does **not** run on macOS.
-
-**Port 7000 conflicts with AirPlay Receiver.** macOS runs an AirPlay Receiver on
-ports 7000 and 5000 by default, so `uvicorn … --port 7000` fails to bind. Either
-turn it off (System Settings → General → AirDrop & Handoff → **AirPlay Receiver:
-Off**) or run Odysseus on another port:
-```bash
-uvicorn app:app --host 127.0.0.1 --port 7860
-```
-
-Prefer a clickable app? Build a launcher `Odysseus.app` (+ a drag-to-Applications
-`.dmg`) that starts the local server and opens the UI in its own window:
+**Prefer a clickable app?** After your first `./start-macos.sh`, build a
+launcher `Odysseus.app` (+ a drag-to-Applications `.dmg`) that starts the server
+and opens the UI in its own window:
 ```bash
 ./build-macos-app.sh          # → dist/Odysseus.app and dist/Odysseus.dmg
 ```
-This wraps the venv in this repo (it doesn't bundle Python), so the install path
-is baked in at build time — rebuild if you move the repo.
+
+<details>
+<summary>What <code>start-macos.sh</code> does, serving engines, and manual steps</summary>
+
+`start-macos.sh` is just the manual steps wrapped up: Homebrew deps → a Python
+`.venv` → `pip install -r requirements.txt` → `python setup.py` → `uvicorn` on a
+non-AirPlay port. Run them by hand if you prefer (the Linux steps above, but use
+`python3.11 -m venv` and `--port 7860`).
+
+**Serving engines on Metal** — Cookbook only recommends models it can serve here:
+- **llama.cpp** — `brew install llama.cpp` (done by `start-macos.sh`) provides a
+  prebuilt Metal `llama-server`, no compile. Without it, Cookbook builds it from
+  source on first serve, which needs `cmake` + Xcode Command Line Tools
+  (`brew install cmake && xcode-select --install`).
+- **Ollama** — `brew install ollama` is another simple Metal-accelerated option.
+- vLLM/SGLang are CUDA/ROCm-only and do **not** run on macOS.
+
+**Port 7000 & AirPlay** — macOS AirPlay Receiver holds ports 7000/5000, so
+`start-macos.sh` defaults to **7860**. To use 7000, turn AirPlay Receiver off in
+System Settings → General → AirDrop & Handoff.
+
+**Build prerequisites baked in** — the `.app` wraps this repo's `.venv` (it
+doesn't bundle Python), so the path is fixed at build time — rebuild if you move
+the repo.
+</details>
 
 ### Option 3: Manual install — Windows (PowerShell)
 Windows support is not actively tested. Use it with caution; Docker on Linux
