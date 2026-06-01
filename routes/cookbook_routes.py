@@ -866,17 +866,45 @@ def setup_cookbook_routes() -> APIRouter:
                 runner_lines.append('  echo "Native llama-server not found — building from source (one-time, may take a few minutes)..."')
                 runner_lines.append('  mkdir -p ~/bin')
                 runner_lines.append('  cd ~ && [ -d llama.cpp ] || git clone --depth 1 https://github.com/ggml-org/llama.cpp')
-                # GPU build if CUDA is present; fall back to a plain (CPU) build.
-                runner_lines.append('  cd ~/llama.cpp && { cmake -B build -DGGML_CUDA=ON 2>/dev/null || cmake -B build; } \\')
-                runner_lines.append('    && cmake --build build -j"$(nproc)" --target llama-server \\')
-                runner_lines.append('    && ln -sf ~/llama.cpp/build/bin/llama-server ~/bin/llama-server')
+                # Build with the right accelerator: Metal on macOS (llama.cpp
+                # enables it automatically, no flag), CUDA on Linux when present,
+                # else a plain CPU build. nproc is Linux-only — fall back to
+                # `sysctl hw.ncpu` on macOS. (Tip: `brew install llama.cpp` ships
+                # a prebuilt llama-server and skips this whole source build.)
+                runner_lines.append('  NPROC="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"')
+                runner_lines.append('  if [ "$(uname -s)" = "Darwin" ]; then')
+                runner_lines.append('    cd ~/llama.cpp && cmake -B build \\')
+                runner_lines.append('      && cmake --build build -j"$NPROC" --target llama-server \\')
+                runner_lines.append('      && ln -sf ~/llama.cpp/build/bin/llama-server ~/bin/llama-server')
+                runner_lines.append('  else')
+                runner_lines.append('    cd ~/llama.cpp && { cmake -B build -DGGML_CUDA=ON 2>/dev/null || cmake -B build; } \\')
+                runner_lines.append('      && cmake --build build -j"$NPROC" --target llama-server \\')
+                runner_lines.append('      && ln -sf ~/llama.cpp/build/bin/llama-server ~/bin/llama-server')
+                runner_lines.append('  fi')
                 runner_lines.append('  # If the native build failed, fall back to the Python bindings.')
                 runner_lines.append('  if ! command -v llama-server &>/dev/null && ! python3 -c "import llama_cpp" 2>/dev/null; then')
                 runner_lines.append('    echo "llama-server build failed — installing Python bindings as fallback..."')
                 runner_lines.append('    pip install --user --break-system-packages -q llama-cpp-python 2>/dev/null || pip install -q llama-cpp-python 2>/dev/null || true')
                 runner_lines.append('  fi')
                 runner_lines.append('fi')
+            elif "ollama" in req.cmd:
+                # Ollama manages its own model store and HTTP server. Just make
+                # sure the binary exists and the daemon is up before running the
+                # command (the natural serving engine on Apple Silicon / Metal).
+                runner_lines.append('if ! command -v ollama &>/dev/null; then')
+                runner_lines.append('  echo "ERROR: Ollama not found. Install it (macOS: brew install ollama, or https://ollama.com/download), then launch again."')
+                runner_lines.append('  exit 127')
+                runner_lines.append('fi')
+                runner_lines.append('if ! curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; then')
+                runner_lines.append('  echo "Starting ollama server..."; (ollama serve >/dev/null 2>&1 &)')
+                runner_lines.append('  for _ in 1 2 3 4 5 6 7 8 9 10; do curl -sf http://localhost:11434/api/tags >/dev/null 2>&1 && break; sleep 1; done')
+                runner_lines.append('fi')
             elif "vllm serve" in req.cmd:
+                # vLLM is CUDA/ROCm-only and does not run on macOS at all.
+                runner_lines.append('if [ "$(uname -s)" = "Darwin" ]; then')
+                runner_lines.append('  echo "ERROR: vLLM does not run on macOS. Use Ollama or llama.cpp (Metal) instead."')
+                runner_lines.append('  exit 1')
+                runner_lines.append('fi')
                 # Put ~/.local/bin on PATH first — without a venv, vllm installs
                 # there via --user and the non-login serve shell otherwise can't
                 # find the `vllm` CLI ("command not found"). Mirrors llama.cpp above.

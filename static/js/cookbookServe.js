@@ -16,6 +16,7 @@ let _getPort;
 let _sshPrefix;
 let _getPlatform;
 let _isWindows;
+let _isMetal;
 let _buildEnvPrefix;
 let _buildServeCmd;
 let _shellQuote;
@@ -382,6 +383,8 @@ function _rerenderCachedModels() {
       panelHtml += `<div class="hwfit-serve-row">`;
       const _backendChoices = _isWindows()
         ? [['llamacpp','llama.cpp']]
+        : _isMetal()
+        ? [['llamacpp','llama.cpp'],['ollama','Ollama'],['diffusers','Diffusers']]
         : [['vllm','vLLM'],['sglang','SGLang'],['llamacpp','llama.cpp'],['diffusers','Diffusers']];
       const backendOpts = _backendChoices.map(([v,l]) => `<option value="${v}"${defaultBackend===v?' selected':''}>${l}</option>`).join('');
       panelHtml += `<label>${_l('Backend','Inference engine: vLLM, SGLang, llama.cpp, or Diffusers')}<select class="hwfit-sf" data-field="backend">${backendOpts}</select></label>`;
@@ -1592,6 +1595,7 @@ export function initServe(shared) {
   _sshPrefix = shared._sshPrefix;
   _getPlatform = shared._getPlatform;
   _isWindows = shared._isWindows;
+  _isMetal = shared._isMetal;
   _buildEnvPrefix = shared._buildEnvPrefix;
   _buildServeCmd = shared._buildServeCmd;
   _shellQuote = shared._shellQuote;
