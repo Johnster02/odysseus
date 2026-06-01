@@ -32,14 +32,30 @@ if ! command -v brew >/dev/null 2>&1; then
 fi
 
 # 2. System dependencies:
-#    - python@3.11 : the app needs 3.11+ (system Python is older)
-#    - tmux        : Cookbook runs model downloads/serves in the background
-#    - llama.cpp   : a prebuilt, Metal-enabled llama-server so Cookbook can
-#                    serve GGUF models on the GPU with no compile step
-echo "▶ Installing dependencies (Homebrew)…"
-brew install python@3.11 tmux llama.cpp
+# Find a Python 3.11+ that's already installed (the app needs 3.11+). macOS
+# doesn't ship a recent Python by default, so we only install one if yours is
+# missing or too old — we don't force a specific version on top of what you have.
+PY=""
+for cand in python3 python3.13 python3.12 python3.11; do
+  p="$(command -v "$cand" 2>/dev/null)" || continue
+  if "$p" -c 'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3, 11) else 1)' 2>/dev/null; then
+    PY="$p"; break
+  fi
+done
 
-PY="$(command -v python3.11 || command -v python3)"
+# System dependencies:
+#    - tmux      : Cookbook runs model downloads/serves in the background
+#    - llama.cpp : a prebuilt, Metal-enabled llama-server so Cookbook can serve
+#                  GGUF models on the GPU with no compile step
+#    - python@3.11 : installed only if no suitable Python 3.11+ was found above
+echo "▶ Installing dependencies (Homebrew)…"
+if [ -n "$PY" ]; then
+  echo "  (using existing $("$PY" --version 2>&1))"
+  brew install tmux llama.cpp
+else
+  brew install python@3.11 tmux llama.cpp
+  PY="$(command -v python3.11)"
+fi
 
 # 3. Python environment + dependencies (kept inside the repo, in .venv).
 if [ ! -d .venv ]; then

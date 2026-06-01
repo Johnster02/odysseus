@@ -109,7 +109,8 @@ sudo pacman -S tmux
 # Fedora
 sudo dnf install tmux
 
-# macOS (Homebrew). The system Python is 3.9 — install 3.11+ too:
+# macOS (Homebrew). macOS ships no recent Python by default — install 3.11+
+# (skip the python line if you already have Python 3.11 or newer):
 brew install python@3.11 tmux
 ```
 
